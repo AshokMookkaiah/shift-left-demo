@@ -1,0 +1,9 @@
+rules:
+  - id: hardcoded-credentials
+    patterns:
+      - pattern: |
+          username = "$SECRET"
+      - pattern: |
+          password = "$SECRET"
+    message: "Potential hardcoded credential detected."
+    severity: WARNING
