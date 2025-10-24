@@ -1,0 +1,54 @@
+name: Security Scan (Semgrep + Trivy + SBOM)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies for Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      - name: Run Semgrep static analysis
+        run: |
+          semgrep --config=r2c --no-git-ignore || true
+        continue-on-error: false
+
+      - name: Build Docker image
+        run: |
+          docker build -t shift-left-demo:latest .
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: shift-left-demo:latest
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: shift-left-demo:latest
+          format: 'cyclonedx'
+          output: 'sbom.cdx.json'
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
